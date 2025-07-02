@@ -59,6 +59,7 @@ const WordTable = ({ data, columns, pagination, examples, onEditChinese, onEditH
             style={{ marginTop: 32 }}
             rowKey="key"
             bordered
+            scroll={{ x: 'max-content' }}
         />
     );
 };

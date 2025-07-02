@@ -256,6 +256,9 @@ const App = () => {
                     ? 'red'
                     : undefined,
             }}
+            onCopy={e => e.preventDefault()}
+            onPaste={e => e.preventDefault()}
+            onCut={e => e.preventDefault()}
           />
           {userChineseStatus[String(row.key)] === 'correct' && (
             <span style={{ color: 'green', marginLeft: 8 }}>Đúng</span>
@@ -282,19 +285,26 @@ const App = () => {
   return (
     <div style={{ maxWidth: 1300, margin: '40px auto', padding: 48, background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
       <h2 style={{ fontSize: 44, fontWeight: 800, textAlign: 'center', marginBottom: 40, letterSpacing: 2 }}>Hỗ trợ học tiếng Trung</h2>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-        <Input
-          placeholder="Nhập hoặc tìm kiếm chữ Trung..."
-          value={searchOrAdd}
-          onChange={e => setSearchOrAdd(e.target.value)}
-          onPressEnter={handleAddIfNotExist}
-          style={{ width: 350, fontSize: 18 }}
-          allowClear
-        />
+      <div className="search-add-row">
+        <div className="search-input-wrap">
+          <Input
+            placeholder="Nhập hoặc tìm kiếm chữ Trung..."
+            value={searchOrAdd}
+            onChange={e => setSearchOrAdd(e.target.value)}
+            onPressEnter={handleAddIfNotExist}
+            style={{ width: '100%', fontSize: 18, minWidth: 0 }}
+            allowClear
+          />
+        </div>
         {!data.some(row => row.chinese === searchOrAdd) && searchOrAdd && (
-          <Button type="primary" onClick={handleAddIfNotExist}>
-            Thêm từ này
-          </Button>
+          <>
+            <div style={{ height: 16 }} />
+            <div className="search-btn-wrap">
+              <Button type="primary" onClick={handleAddIfNotExist} className="add-word-btn">
+                Thêm từ này
+              </Button>
+            </div>
+          </>
         )}
       </div>
       <WordTable
