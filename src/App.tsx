@@ -1,5 +1,5 @@
 import { DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { Button, Form, Input } from 'antd';
+import { Button, Form, Input, Modal } from 'antd';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -29,6 +29,8 @@ const App = () => {
   const [userChineseStatus, setUserChineseStatus] = useState<{ [key: string]: 'correct' | 'incorrect' | undefined }>({});
   const [searchOrAdd, setSearchOrAdd] = useState('');
   const [filteredData, setFilteredData] = useState<WordRow[]>([]);
+  const [editingVietnameseRow, setEditingVietnameseRow] = useState<WordRow | null>(null);
+  const [vietnameseInput, setVietnameseInput] = useState('');
 
   const handleAdd = async (values: { chinese: string }) => {
     try {
@@ -166,6 +168,26 @@ const App = () => {
     }
   };
 
+  const handleEditVietnamese = (row: WordRow) => {
+    setEditingVietnameseRow(row);
+    setVietnameseInput(row.vietnamese);
+  };
+
+  const handleSaveVietnamese = async () => {
+    if (!editingVietnameseRow) return;
+    setLoading(true);
+    try {
+      const res = await updateWord(editingVietnameseRow.key, { vietnamese: vietnameseInput });
+      const updated = res.data as Partial<WordRow>;
+      setData(data.map(row => row.key === editingVietnameseRow.key ? { ...row, ...updated, key: row.key } : row));
+      toast.success('Cập nhật nghĩa tiếng Việt thành công!');
+    } catch (e) {
+      toast.error('Lỗi khi cập nhật nghĩa tiếng Việt!');
+    }
+    setLoading(false);
+    setEditingVietnameseRow(null);
+  };
+
   const columns = [
     {
       title: 'STT',
@@ -201,6 +223,14 @@ const App = () => {
       title: 'Nghĩa tiếng Việt',
       dataIndex: 'vietnamese',
       key: 'vietnamese',
+      render: (text: string, row: WordRow) => (
+        <>
+          {text}
+          <Button style={{ marginLeft: 12 }} onClick={() => handleEditVietnamese(row)}>
+            Sửa
+          </Button>
+        </>
+      ),
     },
     {
       title: 'Ví dụ',
@@ -315,6 +345,19 @@ const App = () => {
         loading={loading}
         oldChinese={editingChineseRow?.chinese}
       />
+      <Modal
+        open={!!editingVietnameseRow}
+        title={`Sửa nghĩa tiếng Việt cho: ${editingVietnameseRow?.chinese}`}
+        onOk={handleSaveVietnamese}
+        onCancel={() => setEditingVietnameseRow(null)}
+        confirmLoading={loading}
+      >
+        <Input
+          value={vietnameseInput}
+          onChange={e => setVietnameseInput(e.target.value)}
+          placeholder="Nhập nghĩa tiếng Việt mới"
+        />
+      </Modal>
       <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );

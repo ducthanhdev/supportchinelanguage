@@ -14,6 +14,13 @@ const WordForm = ({ onAdd, form }: WordFormProps) => (
         >
             <Input placeholder="Nhập chữ Trung" style={{ fontSize: 32, height: 64, width: 340, padding: '0 24px' }} />
         </Form.Item>
+        <Form.Item
+            name="vietnamese"
+            rules={[{ required: false }]}
+            style={{ marginRight: 24 }}
+        >
+            <Input placeholder="Nhập nghĩa tiếng Việt (nếu có)" style={{ fontSize: 24, height: 64, width: 340, padding: '0 24px' }} />
+        </Form.Item>
         <Form.Item>
             <Button type="primary" htmlType="submit" style={{ fontSize: 32, height: 64, padding: '0 48px' }}>
                 Thêm
