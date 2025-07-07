@@ -218,6 +218,17 @@ const App = () => {
     }
   };
 
+  // Thêm hàm rút gọn tên voice
+  function getDisplayVoiceName(voice: SpeechSynthesisVoice) {
+    const match = voice.name.match(/Microsoft\s+([A-Za-z]+)\s/);
+    const shortName = match ? match[1] : voice.name;
+    let region = '';
+    if (voice.lang.includes('HK')) region = ' (Hồng Kông)';
+    else if (voice.lang.includes('TW')) region = ' (Đài Loan)';
+    else if (voice.lang.includes('CN')) region = ' (Trung Quốc đại lục)';
+    return shortName + region;
+  }
+
   const columns = [
     {
       title: 'STT',
@@ -332,7 +343,7 @@ const App = () => {
           style={{ minWidth: 220 }}
           value={selectedVoice}
           onChange={setSelectedVoice}
-          options={voices.map(v => ({ label: `${v.name} (${v.lang})`, value: v.name }))}
+          options={voices.map(v => ({ label: getDisplayVoiceName(v), value: v.name }))}
           placeholder="Chọn giọng đọc"
         />
       </div>
