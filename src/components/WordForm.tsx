@@ -9,7 +9,10 @@ const WordForm = ({ onAdd, form }: WordFormProps) => (
     <Form form={form} layout="inline" onFinish={onAdd} style={{ justifyContent: 'center', marginBottom: 40 }}>
         <Form.Item
             name="chinese"
-            rules={[{ required: true, message: 'Nhập chữ Trung!' }]}
+            rules={[
+                { required: true, message: 'Nhập chữ Trung!' },
+                { pattern: /^[\u4e00-\u9fff]+$/, message: 'Chỉ nhập chữ Trung!' }
+            ]}
             style={{ marginRight: 24 }}
         >
             <Input placeholder="Nhập chữ Trung" style={{ fontSize: 32, height: 64, width: 340, padding: '0 24px' }} />

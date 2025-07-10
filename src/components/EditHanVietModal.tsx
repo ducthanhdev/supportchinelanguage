@@ -1,4 +1,4 @@
-import { Input, Modal } from 'antd';
+import { Input, Modal, message } from 'antd';
 
 interface EditHanVietModalProps {
     open: boolean;
@@ -12,20 +12,29 @@ interface EditHanVietModalProps {
 
 const EditHanVietModal = ({
     open, value, onChange, onOk, onCancel, loading, oldChinese
-}: EditHanVietModalProps) => (
-    <Modal
-        open={open}
-        title={`Sửa nghĩa Hán Việt cho: ${oldChinese}`}
-        onOk={onOk}
-        onCancel={onCancel}
-        confirmLoading={loading}
-    >
-        <Input
-            value={value}
-            onChange={e => onChange(e.target.value)}
-            placeholder="Nhập nghĩa Hán Việt mới"
-        />
-    </Modal>
-);
+}: EditHanVietModalProps) => {
+    const handleOk = () => {
+        if (!value.trim()) {
+            message.error('Không được để trống nghĩa Hán Việt!');
+            return;
+        }
+        onOk();
+    };
+    return (
+        <Modal
+            open={open}
+            title={`Sửa nghĩa Hán Việt cho: ${oldChinese}`}
+            onOk={handleOk}
+            onCancel={onCancel}
+            confirmLoading={loading}
+        >
+            <Input
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder="Nhập nghĩa Hán Việt mới"
+            />
+        </Modal>
+    );
+};
 
 export default EditHanVietModal; 

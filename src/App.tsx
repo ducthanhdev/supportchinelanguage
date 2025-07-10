@@ -163,6 +163,11 @@ const App = () => {
 
   const handleAddIfNotExist = async () => {
     if (!searchOrAdd) return;
+    // Kiểm tra chỉ cho phép chữ Trung
+    if (!/^[\u4e00-\u9fff]+$/.test(searchOrAdd)) {
+      toast.error('Chỉ nhập chữ Trung!');
+      return;
+    }
     const exists = data.some(row => row.chinese === searchOrAdd);
     if (!exists) {
       await handleAdd({ chinese: searchOrAdd });
@@ -420,7 +425,13 @@ const App = () => {
       <Modal
         open={!!editingVietnameseRow}
         title={`Sửa nghĩa tiếng Việt cho: ${editingVietnameseRow?.chinese}`}
-        onOk={handleSaveVietnamese}
+        onOk={() => {
+          if (!vietnameseInput.trim()) {
+            toast.error('Không được để trống nghĩa tiếng Việt!');
+            return;
+          }
+          handleSaveVietnamese();
+        }}
         onCancel={() => setEditingVietnameseRow(null)}
         confirmLoading={loading}
       >
