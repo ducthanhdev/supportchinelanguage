@@ -317,6 +317,8 @@ const App = () => {
       setData(prev => [...prev, { ...word, key: word._id || word.key }]);
       form.resetFields();
       toast.success('Thêm từ thành công!');
+      // Refresh data để đảm bảo hiển thị đúng
+      fetchWords();
     } catch (e) {
       toast.error('Lỗi khi thêm từ!');
     }
