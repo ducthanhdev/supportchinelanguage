@@ -204,7 +204,11 @@ const App = () => {
       const reviewFlashcards = (response.data as any).flashcards;
 
       if (reviewFlashcards.length === 0) {
-        message.info('Không có flashcards cần review! Bạn có thể tạo flashcards từ danh sách từ vựng.');
+        if (flashcardStats && flashcardStats.total > 0) {
+          message.success('Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn. Hãy quay lại sau nhé.');
+        } else {
+          message.info('Bạn chưa có thẻ nào. Hãy tạo flashcards từ danh sách từ vựng để bắt đầu ôn tập!');
+        }
         return;
       }
 
