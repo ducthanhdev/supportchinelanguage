@@ -1,5 +1,5 @@
-import { DeleteOutlined, EditOutlined, SoundOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Modal, Select } from 'antd';
+import { BookOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, SoundOutlined, UserOutlined } from '@ant-design/icons';
+import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,7 +8,10 @@ import DeleteConfirmModal from './components/DeleteConfirmModal';
 import EditChineseModal from './components/EditChineseModal';
 import EditHanVietModal from './components/EditHanVietModal';
 import ExampleModal from './components/ExampleModal';
+import LoginModal from './components/LoginModal';
+import RegisterModal from './components/RegisterModal';
 import WordTable from './components/WordTable';
+import { User } from './types/user';
 import { WordRow } from './types/word';
 
 const App = () => {
@@ -34,6 +37,278 @@ const App = () => {
   const [vietnameseInput, setVietnameseInput] = useState('');
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>('');
+
+  // Authentication states
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Kiểm tra authentication khi component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const userStr = localStorage.getItem('user');
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setCurrentUser(user);
+        setIsAuthenticated(true);
+      } catch (error) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
+
+  // Chỉ fetch data khi đã authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchWords();
+    }
+  }, [isAuthenticated, page, pageSize]);
+
+  const fetchWords = async () => {
+    try {
+      const res = await getWords(page, pageSize);
+      const dataRes = res.data as any;
+      const words = (dataRes.words || dataRes).map((item: any) => ({
+        ...item,
+        key: item._id || item.key,
+      }));
+      setData(words);
+      setTotal(dataRes.total || words.length);
+    } catch (e) {
+      toast.error('Không lấy được danh sách từ vựng!');
+    }
+  };
+
+  const handleAuthSuccess = (token: string, user: User) => {
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    setShowLoginModal(false);
+    setShowRegisterModal(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    setData([]);
+    toast.success('Đăng xuất thành công!');
+  };
+
+  const userMenuItems = [
+    {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: `Xin chào, ${currentUser?.displayName}`,
+    },
+    {
+      key: 'logout',
+      icon: <LogoutOutlined />,
+      label: 'Đăng xuất',
+      onClick: handleLogout,
+    },
+  ];
+
+  // Các useEffect khác
+  useEffect(() => {
+    const fetchExamples = async () => {
+      const wordsOnPage = data.map(row => row.chinese);
+      if (wordsOnPage.length === 0) return setExamples({});
+      try {
+        const res = await getExamples(wordsOnPage);
+        const examplesObj = (res.data as any).examples || {};
+        const newExamples: { [key: string]: string } = {};
+        for (const row of data) {
+          let example = examplesObj[row.chinese] || '';
+          if (example && row.chinese) {
+            const re = new RegExp(row.chinese, 'g');
+            example = example.replace(re, `<span style='color: red; font-weight: bold;'>${row.chinese}</span>`);
+          }
+          newExamples[row.key] = example;
+        }
+        setExamples(newExamples);
+      } catch {
+        setExamples({});
+      }
+    };
+    if (isAuthenticated) {
+      fetchExamples();
+    }
+  }, [data, isAuthenticated]);
+
+  useEffect(() => {
+    if (!searchOrAdd) {
+      setFilteredData(data);
+    } else {
+      setFilteredData(
+        data.filter(row => row.chinese.includes(searchOrAdd))
+      );
+    }
+  }, [searchOrAdd, data]);
+
+  // Lấy danh sách voice tiếng Trung khi component mount
+  useEffect(() => {
+    const loadVoices = () => {
+      const allVoices = window.speechSynthesis.getVoices();
+      const zhVoices = allVoices.filter(v => v.lang && v.lang.startsWith('zh'));
+      setVoices(zhVoices);
+      if (zhVoices.length > 0 && !selectedVoice) {
+        setSelectedVoice(zhVoices[0].name);
+      }
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
+  if (!isAuthenticated) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '20px'
+      }}>
+        <div style={{
+          maxWidth: 600,
+          width: '100%',
+          padding: '60px 40px',
+          background: '#fff',
+          borderRadius: 24,
+          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+          textAlign: 'center'
+        }}>
+          <div style={{
+            fontSize: 64,
+            color: '#1890ff',
+            marginBottom: 24,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <BookOutlined />
+          </div>
+
+          <h1 style={{
+            fontSize: 48,
+            fontWeight: 800,
+            marginBottom: 16,
+            letterSpacing: 2,
+            color: '#262626',
+            margin: '0 0 16px 0'
+          }}>
+            Hỗ trợ học tiếng Trung
+          </h1>
+
+          <p style={{
+            fontSize: 20,
+            marginBottom: 48,
+            color: '#666',
+            lineHeight: 1.6
+          }}>
+            Học tiếng Trung hiệu quả với công cụ hỗ trợ thông minh
+          </p>
+
+          <div style={{ marginBottom: 40 }}>
+            <Space size="large" direction="vertical" style={{ width: '100%' }}>
+              <Button
+                type="primary"
+                size="large"
+                onClick={() => setShowLoginModal(true)}
+                style={{
+                  fontSize: 18,
+                  height: 56,
+                  padding: '0 48px',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  width: '100%',
+                  maxWidth: 300
+                }}
+              >
+                Đăng nhập
+              </Button>
+              <Button
+                size="large"
+                onClick={() => setShowRegisterModal(true)}
+                style={{
+                  fontSize: 18,
+                  height: 56,
+                  padding: '0 48px',
+                  borderRadius: 12,
+                  fontWeight: 600,
+                  width: '100%',
+                  maxWidth: 300,
+                  border: '2px solid #1890ff',
+                  color: '#1890ff'
+                }}
+              >
+                Đăng ký
+              </Button>
+            </Space>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 40,
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, color: '#1890ff', marginBottom: 8 }}>
+                📚
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#262626' }}>
+                Từ vựng phong phú
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, color: '#1890ff', marginBottom: 8 }}>
+                🎯
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#262626' }}>
+                Học tập hiệu quả
+              </div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 32, color: '#1890ff', marginBottom: 8 }}>
+                🔄
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: '#262626' }}>
+                Dịch thuật tự động
+              </div>
+            </div>
+          </div>
+
+          <LoginModal
+            open={showLoginModal}
+            onClose={() => setShowLoginModal(false)}
+            onSuccess={handleAuthSuccess}
+            onSwitchToRegister={() => {
+              setShowLoginModal(false);
+              setShowRegisterModal(true);
+            }}
+          />
+
+          <RegisterModal
+            open={showRegisterModal}
+            onClose={() => setShowRegisterModal(false)}
+            onSuccess={handleAuthSuccess}
+            onSwitchToLogin={() => {
+              setShowRegisterModal(false);
+              setShowLoginModal(true);
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const handleAdd = async (values: { chinese: string }) => {
     try {
@@ -66,58 +341,6 @@ const App = () => {
     setLoading(false);
     setEditingRow(null);
   };
-
-  useEffect(() => {
-    const fetchExamples = async () => {
-      const wordsOnPage = data.map(row => row.chinese);
-      if (wordsOnPage.length === 0) return setExamples({});
-      try {
-        const res = await getExamples(wordsOnPage);
-        const examplesObj = (res.data as any).examples || {};
-        const newExamples: { [key: string]: string } = {};
-        for (const row of data) {
-          let example = examplesObj[row.chinese] || '';
-          if (example && row.chinese) {
-            const re = new RegExp(row.chinese, 'g');
-            example = example.replace(re, `<span style='color: red; font-weight: bold;'>${row.chinese}</span>`);
-          }
-          newExamples[row.key] = example;
-        }
-        setExamples(newExamples);
-      } catch {
-        setExamples({});
-      }
-    };
-    fetchExamples();
-  }, [data]);
-
-  useEffect(() => {
-    const fetchWords = async () => {
-      try {
-        const res = await getWords(page, pageSize);
-        const dataRes = res.data as any;
-        const words = (dataRes.words || dataRes).map((item: any) => ({
-          ...item,
-          key: item._id || item.key,
-        }));
-        setData(words);
-        setTotal(dataRes.total || words.length);
-      } catch (e) {
-        toast.error('Không lấy được danh sách từ vựng!');
-      }
-    };
-    fetchWords();
-  }, [page, pageSize]);
-
-  useEffect(() => {
-    if (!searchOrAdd) {
-      setFilteredData(data);
-    } else {
-      setFilteredData(
-        data.filter(row => row.chinese.includes(searchOrAdd))
-      );
-    }
-  }, [searchOrAdd, data]);
 
   const confirmDelete = async () => {
     if (!deleteRow) return;
@@ -215,43 +438,20 @@ const App = () => {
     setTranslateLoading(prev => ({ ...prev, [row.key]: false }));
   };
 
-  // Lấy danh sách voice tiếng Trung khi component mount
-  useEffect(() => {
-    const loadVoices = () => {
-      const allVoices = window.speechSynthesis.getVoices();
-      const zhVoices = allVoices.filter(v => v.lang && v.lang.startsWith('zh'));
-      setVoices(zhVoices);
-      if (zhVoices.length > 0 && !selectedVoice) {
-        setSelectedVoice(zhVoices[0].name);
-      }
-    };
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // Hàm phát âm chữ Trung với voice đã chọn
   const speakChinese = (text: string) => {
     if ('speechSynthesis' in window) {
-      const utter = new window.SpeechSynthesisUtterance(text);
-      const zhVoice = voices.find(v => v.name === selectedVoice);
-      if (zhVoice) utter.voice = zhVoice;
-      utter.lang = 'zh-CN';
-      window.speechSynthesis.speak(utter);
-    } else {
-      toast.error('Trình duyệt không hỗ trợ phát âm!');
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-CN';
+      if (selectedVoice) {
+        utterance.voice = voices.find(v => v.name === selectedVoice) || null;
+      }
+      window.speechSynthesis.speak(utterance);
     }
   };
 
-  // Thêm hàm rút gọn tên voice
   function getDisplayVoiceName(voice: SpeechSynthesisVoice) {
-    const match = voice.name.match(/Microsoft\s+([A-Za-z]+)\s/);
-    const shortName = match ? match[1] : voice.name;
-    let region = '';
-    if (voice.lang.includes('HK')) region = ' (Hồng Kông)';
-    else if (voice.lang.includes('TW')) region = ' (Đài Loan)';
-    else if (voice.lang.includes('CN')) region = ' (Trung Quốc đại lục)';
-    return shortName + region;
+    return `${voice.name} (${voice.lang})`;
   }
 
   const columns = [
@@ -368,7 +568,17 @@ const App = () => {
 
   return (
     <div style={{ maxWidth: 1300, margin: '40px auto', padding: 48, background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-      <h2 style={{ fontSize: 44, fontWeight: 800, textAlign: 'center', marginBottom: 40, letterSpacing: 2 }}>Hỗ trợ học tiếng Trung</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+        <h2 style={{ fontSize: 44, fontWeight: 800, letterSpacing: 2, margin: 0 }}>Hỗ trợ học tiếng Trung</h2>
+        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+          <Button type="text" style={{ height: 'auto', padding: 8 }}>
+            <Space>
+              <Avatar icon={<UserOutlined />} />
+              <span>{currentUser?.displayName}</span>
+            </Space>
+          </Button>
+        </Dropdown>
+      </div>
       {/* Dropdown chọn voice */}
       <div style={{ marginBottom: 24, maxWidth: 400 }}>
         <span style={{ marginRight: 8, fontWeight: 500 }}>Chọn giọng đọc tiếng Trung:</span>
@@ -470,6 +680,26 @@ const App = () => {
         />
       </Modal>
       <ToastContainer position="top-right" autoClose={3000} />
+
+      <LoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onSuccess={handleAuthSuccess}
+        onSwitchToRegister={() => {
+          setShowLoginModal(false);
+          setShowRegisterModal(true);
+        }}
+      />
+
+      <RegisterModal
+        open={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onSuccess={handleAuthSuccess}
+        onSwitchToLogin={() => {
+          setShowRegisterModal(false);
+          setShowLoginModal(true);
+        }}
+      />
     </div>
   );
 };
