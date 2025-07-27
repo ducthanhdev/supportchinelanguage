@@ -569,70 +569,266 @@ const App = () => {
   ];
 
   return (
-    <div style={{ maxWidth: 1300, margin: '40px auto', padding: 48, background: '#fff', borderRadius: 18, boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
-        <h2 style={{ fontSize: 44, fontWeight: 800, letterSpacing: 2, margin: 0 }}>Hỗ trợ học tiếng Trung</h2>
-        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-          <Button type="text" style={{ height: 'auto', padding: 8 }}>
-            <Space>
-              <Avatar icon={<UserOutlined />} />
-              <span>{currentUser?.displayName}</span>
-            </Space>
-          </Button>
-        </Dropdown>
-      </div>
-      {/* Dropdown chọn voice */}
-      <div style={{ marginBottom: 24, maxWidth: 400 }}>
-        <span style={{ marginRight: 8, fontWeight: 500 }}>Chọn giọng đọc tiếng Trung:</span>
-        <Select
-          style={{ minWidth: 220 }}
-          value={selectedVoice}
-          onChange={setSelectedVoice}
-          options={voices.map(v => ({ label: getDisplayVoiceName(v), value: v.name }))}
-          placeholder="Chọn giọng đọc"
-        />
-      </div>
-      <div className="search-add-row">
-        <div className="search-input-wrap">
-          <Input
-            placeholder="Nhập hoặc tìm kiếm chữ Trung..."
-            value={searchOrAdd}
-            onChange={e => setSearchOrAdd(e.target.value)}
-            onPressEnter={handleAddIfNotExist}
-            style={{ width: '100%', fontSize: 18, minWidth: 0 }}
-            allowClear
-          />
-        </div>
-        {!data.some(row => row.chinese === searchOrAdd) && searchOrAdd && (
-          <>
-            <div style={{ height: 16 }} />
-            <div className="search-btn-wrap">
-              <Button type="primary" onClick={handleAddIfNotExist} className="add-word-btn">
-                Thêm từ này
-              </Button>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      padding: '20px'
+    }}>
+      <div style={{
+        maxWidth: 1400,
+        margin: '0 auto',
+        background: '#fff',
+        borderRadius: 24,
+        boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+        overflow: 'hidden'
+      }}>
+        {/* Header */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
+          padding: '32px 40px',
+          color: 'white',
+          position: 'relative'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 24
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{
+                fontSize: 48,
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center'
+              }}>
+                <BookOutlined />
+              </div>
+              <div>
+                <h1 style={{
+                  fontSize: 36,
+                  fontWeight: 800,
+                  margin: 0,
+                  color: 'white'
+                }}>
+                  Hỗ trợ học tiếng Trung
+                </h1>
+                <p style={{
+                  fontSize: 16,
+                  margin: '8px 0 0 0',
+                  opacity: 0.9
+                }}>
+                  Học tiếng Trung hiệu quả với công cụ hỗ trợ thông minh
+                </p>
+              </div>
             </div>
-          </>
-        )}
+
+            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+              <Button
+                type="text"
+                style={{
+                  height: 'auto',
+                  padding: '12px 20px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: 12,
+                  color: 'white'
+                }}
+              >
+                <Space>
+                  <Avatar
+                    icon={<UserOutlined />}
+                    style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                  />
+                  <span style={{ fontWeight: 600 }}>{currentUser?.displayName}</span>
+                </Space>
+              </Button>
+            </Dropdown>
+          </div>
+
+          {/* Voice Selection */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            background: 'rgba(255,255,255,0.1)',
+            padding: '16px 20px',
+            borderRadius: 12,
+            backdropFilter: 'blur(10px)'
+          }}>
+            <span style={{ fontWeight: 600, fontSize: 16 }}>🎤 Giọng đọc:</span>
+            <Select
+              style={{
+                minWidth: 300,
+                background: 'rgba(255,255,255,0.9)',
+                borderRadius: 8
+              }}
+              value={selectedVoice}
+              onChange={setSelectedVoice}
+              options={voices.map(v => ({ label: getDisplayVoiceName(v), value: v.name }))}
+              placeholder="Chọn giọng đọc"
+            />
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div style={{ padding: '40px' }}>
+          {/* Search and Add Section */}
+          <div style={{
+            background: '#f8f9fa',
+            padding: '24px',
+            borderRadius: 16,
+            marginBottom: 32,
+            border: '1px solid #e9ecef'
+          }}>
+            <div style={{ marginBottom: 16 }}>
+              <h3 style={{
+                fontSize: 20,
+                fontWeight: 600,
+                margin: '0 0 8px 0',
+                color: '#262626'
+              }}>
+                🔍 Tìm kiếm & Thêm từ mới
+              </h3>
+              <p style={{
+                fontSize: 14,
+                color: '#666',
+                margin: 0
+              }}>
+                Nhập chữ Trung để tìm kiếm hoặc thêm từ mới vào danh sách học
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end' }}>
+              <div style={{ flex: 1 }}>
+                <Input
+                  placeholder="Nhập hoặc tìm kiếm chữ Trung..."
+                  value={searchOrAdd}
+                  onChange={e => setSearchOrAdd(e.target.value)}
+                  onPressEnter={handleAddIfNotExist}
+                  style={{
+                    height: 48,
+                    fontSize: 16,
+                    borderRadius: 12,
+                    border: '2px solid #e9ecef'
+                  }}
+                  allowClear
+                />
+              </div>
+              {!data.some(row => row.chinese === searchOrAdd) && searchOrAdd && (
+                <Button
+                  type="primary"
+                  onClick={handleAddIfNotExist}
+                  style={{
+                    height: 48,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    borderRadius: 12,
+                    padding: '0 24px',
+                    background: 'linear-gradient(135deg, #1890ff 0%, #722ed1 100%)',
+                    border: 'none'
+                  }}
+                >
+                  ➕ Thêm từ này
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 20,
+            marginBottom: 32
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              padding: '24px',
+              borderRadius: 16,
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📚</div>
+              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>{total}</div>
+              <div style={{ fontSize: 14, opacity: 0.9 }}>Từ vựng đã học</div>
+            </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+              padding: '24px',
+              borderRadius: 16,
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
+              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>{page}</div>
+              <div style={{ fontSize: 14, opacity: 0.9 }}>Trang hiện tại</div>
+            </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              padding: '24px',
+              borderRadius: 16,
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🔄</div>
+              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Auto</div>
+              <div style={{ fontSize: 14, opacity: 0.9 }}>Dịch thuật tự động</div>
+            </div>
+          </div>
+
+          {/* Table Section */}
+          <div style={{
+            background: 'white',
+            borderRadius: 16,
+            overflow: 'hidden',
+            border: '1px solid #e9ecef',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+          }}>
+            <div style={{
+              padding: '20px 24px',
+              background: '#f8f9fa',
+              borderBottom: '1px solid #e9ecef'
+            }}>
+              <h3 style={{
+                fontSize: 18,
+                fontWeight: 600,
+                margin: 0,
+                color: '#262626'
+              }}>
+                📖 Danh sách từ vựng
+              </h3>
+            </div>
+
+            <div style={{ padding: '0 24px 24px 24px' }}>
+              <WordTable
+                columns={columns}
+                data={filteredData}
+                pagination={{
+                  current: page,
+                  pageSize: pageSize,
+                  total: total,
+                  onChange: (p: number, ps: number) => {
+                    setPage(p);
+                    setPageSize(ps);
+                  },
+                  showSizeChanger: true,
+                  pageSizeOptions: [5, 10, 20, 50],
+                  style: { marginTop: 16 }
+                }}
+                examples={examples}
+                onEditChinese={handleEditChinese}
+                onEditHanViet={handleEditHanViet}
+                onDelete={setDeleteRow}
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      <WordTable
-        columns={columns}
-        data={filteredData}
-        pagination={{
-          current: page,
-          pageSize: pageSize,
-          total: total,
-          onChange: (p: number, ps: number) => {
-            setPage(p);
-            setPageSize(ps);
-          },
-          showSizeChanger: true,
-          pageSizeOptions: [5, 10, 20, 50],
-        }}
-        examples={examples}
-        onEditChinese={handleEditChinese}
-        onEditHanViet={handleEditHanViet}
-        onDelete={setDeleteRow}
-      />
+
+      {/* Modals */}
       <EditHanVietModal
         open={!!editingRow}
         value={hanVietInput}
