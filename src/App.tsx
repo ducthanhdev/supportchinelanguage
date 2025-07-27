@@ -3,7 +3,7 @@ import { Button, Form, Input, Modal, Select } from 'antd';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { addWord, deleteWord, getExamples, getWords, updateHanViet, updateWord } from './api/wordApi';
+import { addWord, deleteWord, getExamples, getWords, translateToVietnamese, updateHanViet, updateWord } from './api/wordApi';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import EditChineseModal from './components/EditChineseModal';
 import EditHanVietModal from './components/EditHanVietModal';
@@ -17,6 +17,7 @@ const App = () => {
   const [editingRow, setEditingRow] = useState<WordRow | null>(null);
   const [hanVietInput, setHanVietInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [translateLoading, setTranslateLoading] = useState<{ [key: string]: boolean }>({});
   const [exampleModal, setExampleModal] = useState<{ open: boolean, example: string }>({ open: false, example: '' });
   const [examples, setExamples] = useState<{ [key: string]: string }>({});
   const [page, setPage] = useState(1);
@@ -195,6 +196,25 @@ const App = () => {
     setEditingVietnameseRow(null);
   };
 
+  // Hàm dịch tự động nghĩa tiếng Việt
+  const handleTranslateVietnamese = async (row: WordRow) => {
+    setTranslateLoading(prev => ({ ...prev, [row.key]: true }));
+    try {
+      const res = await translateToVietnamese(row.chinese);
+      const translatedText = (res.data as any).translated;
+
+      // Cập nhật nghĩa tiếng Việt
+      const updateRes = await updateWord(row.key, { vietnamese: translatedText });
+      const updated = updateRes.data as Partial<WordRow>;
+      setData(data.map(item => item.key === row.key ? { ...item, ...updated, key: item.key } : item));
+
+      toast.success('Dịch nghĩa tiếng Việt thành công!');
+    } catch (e) {
+      toast.error('Lỗi khi dịch nghĩa tiếng Việt!');
+    }
+    setTranslateLoading(prev => ({ ...prev, [row.key]: false }));
+  };
+
   // Lấy danh sách voice tiếng Trung khi component mount
   useEffect(() => {
     const loadVoices = () => {
@@ -282,8 +302,16 @@ const App = () => {
       render: (text: string, row: WordRow) => (
         <>
           {text}
-          <Button style={{ marginLeft: 12 }} onClick={() => handleEditVietnamese(row)}>
+          <Button style={{ marginLeft: 8 }} onClick={() => handleEditVietnamese(row)}>
             Sửa
+          </Button>
+          <Button
+            style={{ marginLeft: 8 }}
+            onClick={() => handleTranslateVietnamese(row)}
+            loading={translateLoading[row.key] || false}
+            type="dashed"
+          >
+            Dịch
           </Button>
         </>
       ),

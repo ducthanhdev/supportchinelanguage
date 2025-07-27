@@ -18,4 +18,11 @@ export const getExamples = (words: string[]) =>
     axios.post(`${API_URL}/api/example`, { words });
 
 export const updateHanViet = (chinese: string, hanviet: string) =>
-    axios.put(`${API_URL}/api/hanviet`, { char: chinese, hanviet }); 
+    axios.put(`${API_URL}/api/hanviet`, { char: chinese, hanviet });
+
+// Translate APIs
+export const translateToVietnamese = (text: string) =>
+    axios.post(`${API_URL}/api/translate/single`, { text });
+
+export const translateBatch = (words: string[]) =>
+    axios.post(`${API_URL}/api/translate/batch`, { words }); 
