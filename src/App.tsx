@@ -521,9 +521,32 @@ const App = () => {
     {
       title: 'Ví dụ',
       key: 'example',
-      render: (_: any, row: WordRow) => (
-        <span dangerouslySetInnerHTML={{ __html: (row.key in examples) ? (examples[row.key] || '') : 'loading...' }} />
-      ),
+      render: (_: any, row: WordRow) => {
+        const example = row.key in examples ? examples[row.key] : 'loading...';
+        if (example && example !== 'loading...' && example.length > 10) {
+          return (
+            <div>
+              <span
+                dangerouslySetInnerHTML={{ __html: example.substring(0, 20) + '...' }}
+                style={{ cursor: 'pointer', color: '#1890ff' }}
+                onClick={() => setExampleModal({ open: true, example })}
+                title="Click để xem đầy đủ"
+              />
+              <Button
+                type="link"
+                size="small"
+                onClick={() => setExampleModal({ open: true, example })}
+                style={{ padding: 0, marginLeft: 4 }}
+              >
+                Xem
+              </Button>
+            </div>
+          );
+        }
+        return (
+          <span dangerouslySetInnerHTML={{ __html: example }} />
+        );
+      },
     },
     {
       title: 'Nhập chữ Trung',
