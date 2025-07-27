@@ -1,10 +1,11 @@
-import { BookOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, SoundOutlined, UserOutlined } from '@ant-design/icons';
+import { BarChartOutlined, BookOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, SoundOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { createFlashcardsFromWords, getFlashcardStats, getFlashcardsForReview } from './api/flashcardApi';
 import { addWord, deleteWord, getExamples, getWords, translateToVietnamese, updateHanViet, updateWord } from './api/wordApi';
+import DashboardModal from './components/DashboardModal';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import EditChineseModal from './components/EditChineseModal';
 import EditHanVietModal from './components/EditHanVietModal';
@@ -52,6 +53,7 @@ const App = () => {
   const [flashcardStats, setFlashcardStats] = useState<FlashcardStats | null>(null);
   const [showFlashcardModal, setShowFlashcardModal] = useState(false);
   const [flashcardLoading, setFlashcardLoading] = useState(false);
+  const [showDashboardModal, setShowDashboardModal] = useState(false);
 
   // Kiểm tra authentication khi component mount
   useEffect(() => {
@@ -883,6 +885,26 @@ const App = () => {
                 {flashcardLoading ? 'Đang tải...' : 'Flashcards cần review'}
               </div>
             </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, #8BC6EC 0%, #9599E2 100%)',
+              padding: '24px',
+              borderRadius: 16,
+              color: 'white',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease-in-out'
+            }}
+              onClick={() => setShowDashboardModal(true)}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ fontSize: 32, marginBottom: 8 }}><BarChartOutlined /></div>
+              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>
+                Thống kê
+              </div>
+              <div style={{ fontSize: 14, opacity: 0.9 }}>Xem tiến độ học tập</div>
+            </div>
           </div>
 
           {/* Table Section */}
@@ -1010,6 +1032,11 @@ const App = () => {
         onClose={() => setShowFlashcardModal(false)}
         flashcards={flashcards}
         onFinish={handleFlashcardFinish}
+      />
+
+      <DashboardModal
+        open={showDashboardModal}
+        onClose={() => setShowDashboardModal(false)}
       />
     </div>
   );
