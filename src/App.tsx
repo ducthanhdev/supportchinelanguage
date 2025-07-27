@@ -1,16 +1,19 @@
 import { BookOutlined, DeleteOutlined, EditOutlined, LogoutOutlined, SoundOutlined, UserOutlined } from '@ant-design/icons';
-import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space } from 'antd';
+import { Avatar, Button, Dropdown, Form, Input, Modal, Select, Space, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { createFlashcardsFromWords, getFlashcardStats, getFlashcardsForReview } from './api/flashcardApi';
 import { addWord, deleteWord, getExamples, getWords, translateToVietnamese, updateHanViet, updateWord } from './api/wordApi';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import EditChineseModal from './components/EditChineseModal';
 import EditHanVietModal from './components/EditHanVietModal';
 import ExampleModal from './components/ExampleModal';
+import FlashcardModal from './components/FlashcardModal';
 import LoginModal from './components/LoginModal';
 import RegisterModal from './components/RegisterModal';
 import WordTable from './components/WordTable';
+import { Flashcard, FlashcardStats } from './types/flashcard';
 import { User } from './types/user';
 import { WordRow } from './types/word';
 
@@ -43,6 +46,12 @@ const App = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Flashcard states
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [flashcardStats, setFlashcardStats] = useState<FlashcardStats | null>(null);
+  const [showFlashcardModal, setShowFlashcardModal] = useState(false);
+  const [flashcardLoading, setFlashcardLoading] = useState(false);
 
   // Kiểm tra authentication khi component mount
   useEffect(() => {
@@ -164,6 +173,54 @@ const App = () => {
     window.speechSynthesis.onvoiceschanged = loadVoices;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Load flashcard stats khi authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadFlashcardStats();
+    }
+  }, [isAuthenticated]);
+
+  const loadFlashcardStats = async () => {
+    try {
+      const response = await getFlashcardStats();
+      setFlashcardStats(response.data as FlashcardStats);
+    } catch (error) {
+      console.error('Error loading flashcard stats:', error);
+    }
+  };
+
+  const handleStartFlashcards = async () => {
+    setFlashcardLoading(true);
+    try {
+      // Tạo flashcards từ words nếu chưa có
+      if (!flashcardStats || flashcardStats.total === 0) {
+        await createFlashcardsFromWords();
+        await loadFlashcardStats();
+      }
+
+      // Lấy flashcards cần review
+      const response = await getFlashcardsForReview(10);
+      const reviewFlashcards = (response.data as any).flashcards;
+
+      if (reviewFlashcards.length === 0) {
+        message.info('Không có flashcards cần review! Bạn có thể tạo flashcards từ danh sách từ vựng.');
+        return;
+      }
+
+      setFlashcards(reviewFlashcards);
+      setShowFlashcardModal(true);
+    } catch (error) {
+      message.error('Có lỗi khi tải flashcards!');
+    }
+    setFlashcardLoading(false);
+  };
+
+  const handleFlashcardFinish = () => {
+    setShowFlashcardModal(false);
+    loadFlashcardStats(); // Refresh stats
+    message.success('Hoàn thành review!');
+  };
 
   // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
   if (!isAuthenticated) {
@@ -800,6 +857,28 @@ const App = () => {
               <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>Auto</div>
               <div style={{ fontSize: 14, opacity: 0.9 }}>Dịch thuật tự động</div>
             </div>
+
+            <div style={{
+              background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+              padding: '24px',
+              borderRadius: 16,
+              color: 'white',
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease-in-out'
+            }}
+              onClick={handleStartFlashcards}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ fontSize: 32, marginBottom: 8 }}>🎴</div>
+              <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 4 }}>
+                {flashcardStats?.dueForReview || 0}
+              </div>
+              <div style={{ fontSize: 14, opacity: 0.9 }}>
+                {flashcardLoading ? 'Đang tải...' : 'Flashcards cần review'}
+              </div>
+            </div>
           </div>
 
           {/* Table Section */}
@@ -920,6 +999,13 @@ const App = () => {
           setShowRegisterModal(false);
           setShowLoginModal(true);
         }}
+      />
+
+      <FlashcardModal
+        open={showFlashcardModal}
+        onClose={() => setShowFlashcardModal(false)}
+        flashcards={flashcards}
+        onFinish={handleFlashcardFinish}
       />
     </div>
   );
