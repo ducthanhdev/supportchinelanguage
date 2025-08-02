@@ -9,7 +9,7 @@ export interface Flashcard {
   repetition: number;
   easinessFactor: number;
   interval: number;
-  dueDate: string; 
+  dueDate: string;
 }
 
 export interface FlashcardStats {

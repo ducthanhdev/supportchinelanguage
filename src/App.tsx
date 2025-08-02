@@ -26,6 +26,7 @@ import {
     createFlashcardsFromWords,
     getFlashcardStats,
     getFlashcardsForReview,
+    reviewFlashcard,
 } from "./api/flashcardApi";
 import {
     addWord,
@@ -263,24 +264,22 @@ const App = () => {
 
                 if (currentStats.total > 0) {
                     // Có thẻ nhưng chưa đến hạn
-                    message.success("Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn. Hãy quay lại sau nhé.");
-                    setFlashcardLoading(false);
-                    return;
+                    toast.success("Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn.");
+                    return; // Thoát khỏi hàm
                 } else {
                     // Không có thẻ nào tồn tại -> Tạo thẻ mới
-                    message.info("Chưa có flashcard nào, đang tạo từ danh sách từ vựng...");
+                    toast.info("Chưa có flashcard, đang tạo từ danh sách từ vựng...");
                     const createResponse = await createFlashcardsFromWords();
                     const createdCount = (createResponse.data as any).created;
 
                     if (createdCount > 0) {
-                        message.success(`Đã tạo ${createdCount} flashcard mới. Bắt đầu ôn tập!`);
+                        toast.success(`Đã tạo ${createdCount} flashcard mới. Bắt đầu ôn tập!`);
                         // Lấy lại danh sách thẻ review sau khi đã tạo
                         reviewResponse = await getFlashcardsForReview(10);
                         reviewFlashcards = (reviewResponse.data as any).flashcards;
                     } else {
-                        message.warning("Không có từ vựng nào để tạo flashcard. Hãy thêm từ mới trước.");
-                        setFlashcardLoading(false);
-                        return;
+                        toast.warn("Không có từ vựng nào để tạo flashcard. Hãy thêm từ mới trước.");
+                        return; // Thoát khỏi hàm
                     }
                 }
             }
@@ -290,21 +289,21 @@ const App = () => {
                 setFlashcards(reviewFlashcards);
                 setShowFlashcardModal(true);
             } else {
-                 message.info("Hiện không có thẻ nào để ôn tập.");
+                 toast.info("Hiện không có thẻ nào để ôn tập.");
             }
 
         } catch (error) {
             toast.error("Có lỗi xảy ra trong quá trình chuẩn bị flashcard!");
             console.error(error);
         } finally {
-            setFlashcardLoading(false);
+            setFlashcardLoading(false); // Đảm bảo luôn tắt loading
         }
     };
 
     const handleFlashcardFinish = () => {
         setShowFlashcardModal(false);
         loadFlashcardStats(); // Tải lại thống kê sau khi ôn tập xong
-        message.success("Hoàn thành phiên ôn tập!");
+        toast.success("Hoàn thành phiên ôn tập!");
     };
 
     // Các hàm xử lý
