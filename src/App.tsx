@@ -125,6 +125,8 @@ const App = () => {
             } catch (error) {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
+                setIsAuthenticated(false);
+                setPageLoading(false);
             }
         } else {
             // Nếu không có token, cũng tắt loading để hiện màn hình đăng nhập
@@ -238,48 +240,71 @@ const App = () => {
     const loadFlashcardStats = async () => {
         try {
             const response = await getFlashcardStats();
-            setFlashcardStats(response.data as FlashcardStats);
+            setFlashcardStats(response.data);
         } catch (error) {
             console.error("Error loading flashcard stats:", error);
         }
     };
 
+    // SỬA LỖI: Viết lại hoàn toàn logic xử lý flashcard
     const handleStartFlashcards = async () => {
         setFlashcardLoading(true);
         try {
-            if (!flashcardStats || flashcardStats.total === 0) {
-                await createFlashcardsFromWords();
-                await loadFlashcardStats();
-            }
+            // Bước 1: Luôn thử lấy thẻ cần review trước
+            let reviewResponse = await getFlashcardsForReview(10);
+            let reviewFlashcards = (reviewResponse.data as any).flashcards;
 
-            const response = await getFlashcardsForReview(10);
-            const reviewFlashcards = (response.data as any).flashcards;
-
+            // Bước 2: Nếu không có thẻ nào, tìm hiểu lý do
             if (reviewFlashcards.length === 0) {
-                if (flashcardStats && flashcardStats.total > 0) {
-                    message.success(
-                        "Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn. Hãy quay lại sau nhé."
-                    );
+                // Kiểm tra thống kê để xem có thẻ nào tồn tại không
+                const statsResponse = await getFlashcardStats();
+                const currentStats = statsResponse.data;
+                setFlashcardStats(currentStats); // Cập nhật state để UI hiển thị đúng
+
+                if (currentStats.total > 0) {
+                    // Có thẻ nhưng chưa đến hạn
+                    message.success("Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn. Hãy quay lại sau nhé.");
+                    setFlashcardLoading(false);
+                    return;
                 } else {
-                    message.info(
-                        "Bạn chưa có thẻ nào. Hãy tạo flashcards từ danh sách từ vựng để bắt đầu ôn tập!"
-                    );
+                    // Không có thẻ nào tồn tại -> Tạo thẻ mới
+                    message.info("Chưa có flashcard nào, đang tạo từ danh sách từ vựng...");
+                    const createResponse = await createFlashcardsFromWords();
+                    const createdCount = (createResponse.data as any).created;
+
+                    if (createdCount > 0) {
+                        message.success(`Đã tạo ${createdCount} flashcard mới. Bắt đầu ôn tập!`);
+                        // Lấy lại danh sách thẻ review sau khi đã tạo
+                        reviewResponse = await getFlashcardsForReview(10);
+                        reviewFlashcards = (reviewResponse.data as any).flashcards;
+                    } else {
+                        message.warning("Không có từ vựng nào để tạo flashcard. Hãy thêm từ mới trước.");
+                        setFlashcardLoading(false);
+                        return;
+                    }
                 }
-                return;
+            }
+            
+            // Bước 3: Nếu có thẻ để review (từ lần gọi đầu hoặc sau khi tạo), hiển thị modal
+            if (reviewFlashcards.length > 0) {
+                setFlashcards(reviewFlashcards);
+                setShowFlashcardModal(true);
+            } else {
+                 message.info("Hiện không có thẻ nào để ôn tập.");
             }
 
-            setFlashcards(reviewFlashcards);
-            setShowFlashcardModal(true);
         } catch (error) {
-            message.error("Có lỗi khi tải flashcards!");
+            toast.error("Có lỗi xảy ra trong quá trình chuẩn bị flashcard!");
+            console.error(error);
+        } finally {
+            setFlashcardLoading(false);
         }
-        setFlashcardLoading(false);
     };
 
     const handleFlashcardFinish = () => {
         setShowFlashcardModal(false);
-        loadFlashcardStats(); // Refresh stats
-        message.success("Hoàn thành review!");
+        loadFlashcardStats(); // Tải lại thống kê sau khi ôn tập xong
+        message.success("Hoàn thành phiên ôn tập!");
     };
 
     // Các hàm xử lý

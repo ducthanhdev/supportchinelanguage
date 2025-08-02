@@ -1,28 +1,26 @@
-import apiClient from './apiClient';
-import { Flashcard, FlashcardStats } from '../types/flashcard';
-
-// Tạo flashcard từ word
-export const createFlashcard = (wordId: string) =>
-    apiClient.post<Flashcard>('/api/flashcards/create', { wordId });
+import apiClient from "./apiClient";
+import { FlashcardStats } from "../types/flashcard";
 
 // Lấy flashcards cần review
-export const getFlashcardsForReview = (limit = 10, difficulty?: string) => {
-    const params = new URLSearchParams();
-    params.append('limit', limit.toString());
-    if (difficulty) params.append('difficulty', difficulty);
-
-    return apiClient.get<Flashcard[]>(`/api/flashcards/review?${params}`);
+export const getFlashcardsForReview = (limit: number = 10) => {
+  return apiClient.get(`/api/flashcards/review?limit=${limit}`);
 };
 
-// Cập nhật kết quả review
-export const updateReviewResult = (flashcardId: string, isCorrect: boolean) =>
-    apiClient.put('/api/flashcards/review', { flashcardId, isCorrect });
-
 // Lấy thống kê flashcards
-export const getFlashcardStats = () =>
-    apiClient.get<FlashcardStats>('/api/flashcards/stats');
+export const getFlashcardStats = () => {
+  return apiClient.get<FlashcardStats>("/api/flashcards/stats");
+};
 
 // Tạo flashcards từ tất cả words
-export const createFlashcardsFromWords = () =>
-    apiClient.post('/api/flashcards/create-from-words', {});
+export const createFlashcardsFromWords = () => {
+  return apiClient.post("/api/flashcards/create-from-words");
+};
 
+/**
+ * Cập nhật kết quả của một lần review bằng thuật toán SM-2.
+ * @param flashcardId ID của thẻ flashcard
+ * @param quality Điểm chất lượng người dùng tự đánh giá (0-5)
+ */
+export const reviewFlashcard = (flashcardId: string, quality: number) => {
+  return apiClient.post(`/api/flashcards/${flashcardId}/review`, { quality });
+};
