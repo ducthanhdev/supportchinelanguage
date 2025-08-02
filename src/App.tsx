@@ -47,15 +47,16 @@ import FlashcardModal from "./components/FlashcardModal";
 import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
 import WordTable from "./components/WordTable";
-import { useAuth } from "./hooks/useAuth"; // BƯỚC 1: Import hook mới
+import { useAuth } from "./hooks/useAuth";
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import usePronunciation from "./hooks/usePronunciation";
 import useWordTableColumns from "./hooks/useWordTableColumns";
 import { Flashcard, FlashcardStats } from "./types/flashcard";
+import { User } from "./types/user";
 import { WordRow } from "./types/word";
 
 const App = () => {
-    // BƯỚC 2: Gọi hook useAuth để lấy tất cả logic xác thực
+    // Logic xác thực được quản lý bởi useAuth
     const {
         currentUser,
         isAuthenticated,
@@ -74,7 +75,7 @@ const App = () => {
     const [hanVietInput, setHanVietInput] = useState("");
 
     const [loading, setLoading] = useState(false);
-    const [pageLoading, setPageLoading] = useState(true); // Giữ lại state này để tải dữ liệu từ vựng
+    const [pageLoading, setPageLoading] = useState(true);
     const [pageError, setPageError] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -103,8 +104,6 @@ const App = () => {
     const [showFlashcardModal, setShowFlashcardModal] = useState(false);
     const [flashcardLoading, setFlashcardLoading] = useState(false);
     const [showDashboardModal, setShowDashboardModal] = useState(false);
-
-    // BƯỚC 3: Xóa bỏ useEffect kiểm tra token cũ vì nó đã nằm trong useAuth
 
     // Chỉ fetch data khi đã authenticated và quá trình kiểm tra auth ban đầu đã xong
     useEffect(() => {
@@ -136,8 +135,6 @@ const App = () => {
         }
     };
 
-    // BƯỚC 4: Xóa bỏ handleAuthSuccess và handleLogout vì đã có trong useAuth
-
     const userMenuItems = [
         {
             key: "profile",
@@ -152,7 +149,6 @@ const App = () => {
         },
     ];
 
-    // ... Các useEffect và hàm xử lý khác giữ nguyên ...
     useEffect(() => {
         const fetchExamples = async () => {
             const wordsOnPage = data.map((row) => row.chinese);
@@ -218,7 +214,6 @@ const App = () => {
 
                 if (currentStats.total > 0) {
                     toast.success("Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn.");
-                    return;
                 } else {
                     toast.info("Chưa có flashcard, đang tạo từ danh sách từ vựng...");
                     const createResponse = await createFlashcardsFromWords();
@@ -230,15 +225,14 @@ const App = () => {
                         reviewFlashcards = (reviewResponse.data as any).flashcards;
                     } else {
                         toast.warn("Không có từ vựng nào để tạo flashcard. Hãy thêm từ mới trước.");
-                        return;
                     }
                 }
             }
             
-            if (reviewFlashcards.length > 0) {
+            if (reviewFlashcards && reviewFlashcards.length > 0) {
                 setFlashcards(reviewFlashcards);
                 setShowFlashcardModal(true);
-            } else {
+            } else if (reviewFlashcards) { 
                  toast.info("Hiện không có thẻ nào để ôn tập.");
             }
 
@@ -255,7 +249,7 @@ const App = () => {
         loadFlashcardStats();
         toast.success("Hoàn thành phiên ôn tập!");
     };
-
+    
     const handleAdd = async (values: { chinese: string }) => {
         try {
             await addWord(values.chinese);
@@ -264,6 +258,19 @@ const App = () => {
             fetchWords();
         } catch (e) {
             toast.error("Lỗi khi thêm từ!");
+        }
+    };
+
+    const handleAddIfNotExist = async () => {
+        if (!searchOrAdd) return;
+        if (!/^[\u4e00-\u9fff]+$/.test(searchOrAdd)) {
+            toast.error("Chỉ nhập chữ Trung!");
+            return;
+        }
+        const exists = data.some((row) => row.chinese === searchOrAdd);
+        if (!exists) {
+            await handleAdd({ chinese: searchOrAdd });
+            setSearchOrAdd("");
         }
     };
 
@@ -348,19 +355,6 @@ const App = () => {
         }
     };
 
-    const handleAddIfNotExist = async () => {
-        if (!searchOrAdd) return;
-        if (!/^[\u4e00-\u9fff]+$/.test(searchOrAdd)) {
-            toast.error("Chỉ nhập chữ Trung!");
-            return;
-        }
-        const exists = data.some((row) => row.chinese === searchOrAdd);
-        if (!exists) {
-            await handleAdd({ chinese: searchOrAdd });
-            setSearchOrAdd("");
-        }
-    };
-
     const handleEditVietnamese = (row: WordRow) => {
         setEditingVietnameseRow(row);
         setVietnameseInput(row.vietnamese);
@@ -413,23 +407,16 @@ const App = () => {
 
 
     const columns = useWordTableColumns({
-        page,
-        pageSize,
-        speakChinese,
-        handleEditHanViet,
-        handleEditVietnamese,
+        page, pageSize, speakChinese, examples, setExampleModal, userChineseInputs,
+        userChineseStatus, translateLoading,
+        handleEditHanViet: (row: WordRow) => { setEditingRow(row); setHanVietInput(row.hanViet); },
+        handleEditVietnamese: (row: WordRow) => { setEditingVietnameseRow(row); setVietnameseInput(row.vietnamese); },
         handleTranslateVietnamese,
-        examples,
-        setExampleModal,
-        userChineseInputs,
         handleUserChineseChange,
-        userChineseStatus,
-        handleEditChinese,
+        handleEditChinese: (row: WordRow) => { setEditingChineseRow(row); setChineseInput(row.chinese); },
         setDeleteRow,
-        translateLoading,
     });
 
-    // Thay thế pageLoading bằng isAuthLoading cho màn hình chờ ban đầu
     if (isAuthLoading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
@@ -438,7 +425,6 @@ const App = () => {
         );
     }
 
-    // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
     if (!isAuthenticated) {
         return (
             <div
@@ -603,14 +589,19 @@ const App = () => {
                     description={pageError}
                     type="error"
                     showIcon
-                    action={
-                        <Button size="small" type="primary" onClick={() => fetchWords()}>
-                            Thử lại
-                        </Button>
-                    }
+                    action={ <Button size="small" type="primary" onClick={fetchWords}>Thử lại</Button> }
                 />
             </div>
         );
+    }
+
+    // Khi đã đăng nhập, hiển thị loading cho dữ liệu từ vựng
+    if (pageLoading) {
+        return (
+             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
+                <Spin tip="Đang tải dữ liệu từ vựng..." size="large" />
+            </div>
+        )
     }
 
 
@@ -646,6 +637,8 @@ const App = () => {
                             justifyContent: "space-between",
                             alignItems: "center",
                             marginBottom: 24,
+                            flexWrap: 'wrap',
+                            gap: '1rem'
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -966,7 +959,6 @@ const App = () => {
                         </div>
 
                         <div style={{ padding: isMobile ? "10px" : "0 24px 24px 24px" }}>
-                            {/* CẢI TIẾN: Render có điều kiện cho mobile/desktop */}
                             {isMobile ? (
                                 <List
                                     loading={pageLoading}
@@ -989,12 +981,11 @@ const App = () => {
                                         current: page,
                                         pageSize: pageSize,
                                         total: total,
-                                        // SỬA LỖI: Thêm kiểu dữ liệu cho p và ps
                                         onChange: (p: number, ps: number) => {
                                             setPage(p);
                                             setPageSize(ps);
                                         },
-                                        simple: true, // Giao diện phân trang đơn giản cho mobile
+                                        simple: true,
                                     }}
                                 />
                             ) : (
@@ -1005,7 +996,6 @@ const App = () => {
                                         current: page,
                                         pageSize: pageSize,
                                         total: total,
-                                        // SỬA LỖI: Thêm kiểu dữ liệu cho p và ps
                                         onChange: (p: number, ps: number) => {
                                             setPage(p);
                                             setPageSize(ps);
@@ -1040,7 +1030,6 @@ const App = () => {
                 example={exampleModal.example}
                 onClose={() => setExampleModal({ open: false, example: "" })}
             />
-            {/* CẢI TIẾN: Thêm confirmLoading cho modal xóa */}
             <DeleteConfirmModal
                 open={!!deleteRow}
                 onOk={confirmDelete}
