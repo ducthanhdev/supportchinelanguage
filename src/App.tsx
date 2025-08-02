@@ -5,14 +5,18 @@ import {
     UserOutlined,
 } from "@ant-design/icons";
 import {
+    Alert,
     Avatar,
     Button,
+    Card,
     Dropdown,
     Form,
     Input,
+    List,
     Modal,
     Select,
     Space,
+    Spin,
     message,
 } from "antd";
 import { useEffect, useState } from "react";
@@ -32,6 +36,7 @@ import {
     updateHanViet,
     updateWord,
 } from "./api/wordApi";
+import PronunciationPractice from "./components/audio/PronunciationPractice";
 import DashboardModal from "./components/dashboard/DashboardModal";
 import DeleteConfirmModal from "./components/DeleteConfirmModal";
 import EditChineseModal from "./components/EditChineseModal";
@@ -41,20 +46,25 @@ import FlashcardModal from "./components/FlashcardModal";
 import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
 import WordTable from "./components/WordTable";
+import { useMediaQuery } from "./hooks/useMediaQuery";
+import usePronunciation from "./hooks/usePronunciation";
+import useWordTableColumns from "./hooks/useWordTableColumns";
 import { Flashcard, FlashcardStats } from "./types/flashcard";
 import { User } from "./types/user";
 import { WordRow } from "./types/word";
-import usePronunciation from "./hooks/usePronunciation";
-import useWordTableColumns from "./hooks/useWordTableColumns";
-import PronunciationPractice from "./components/audio/PronunciationPractice";
-
 
 const App = () => {
     const [form] = Form.useForm();
     const [data, setData] = useState<WordRow[]>([]);
     const [editingRow, setEditingRow] = useState<WordRow | null>(null);
     const [hanVietInput, setHanVietInput] = useState("");
-    const [loading, setLoading] = useState(false);
+
+    // --- CẢI TIẾN: Tách biệt các trạng thái loading ---
+    const [loading, setLoading] = useState(false); // Dùng cho các hành động trong modal (lưu, sửa)
+    const [pageLoading, setPageLoading] = useState(true); // Dùng cho việc tải dữ liệu lần đầu
+    const [pageError, setPageError] = useState<string | null>(null); // Dùng để hiển thị lỗi toàn trang
+    const [isDeleting, setIsDeleting] = useState(false); // Dùng cho hành động xóa
+
     const [translateLoading, setTranslateLoading] = useState<{
         [key: string]: boolean;
     }>({});
@@ -85,7 +95,7 @@ const App = () => {
 
     // Các hooks phải được gọi ở đây, ở cấp cao nhất của component
     const { voices, selectedVoice, setSelectedVoice, speechRate, setSpeechRate, getDisplayVoiceName, speakChinese } = usePronunciation();
-
+    const isMobile = useMediaQuery('(max-width: 768px)'); // CẢI TIẾN: Hook kiểm tra màn hình mobile
 
     // Authentication states
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -116,6 +126,9 @@ const App = () => {
                 localStorage.removeItem("token");
                 localStorage.removeItem("user");
             }
+        } else {
+            // Nếu không có token, cũng tắt loading để hiện màn hình đăng nhập
+            setPageLoading(false);
         }
     }, []);
 
@@ -126,7 +139,9 @@ const App = () => {
         }
     }, [isAuthenticated, page, pageSize]);
 
+    // CẢI TIẾN: Thêm xử lý loading và error cho hàm fetch chính
     const fetchWords = async () => {
+        setPageLoading(true); // Bật loading mỗi khi fetch lại
         try {
             const res = await getWords(page, pageSize);
             const dataRes = res.data as any;
@@ -136,8 +151,12 @@ const App = () => {
             }));
             setData(words);
             setTotal(dataRes.total || words.length);
+            setPageError(null); // Xóa lỗi cũ nếu thành công
         } catch (e) {
             toast.error("Không lấy được danh sách từ vựng!");
+            setPageError("Không thể tải dữ liệu từ máy chủ. Vui lòng làm mới lại trang.");
+        } finally {
+            setPageLoading(false); // Tắt loading khi hoàn tất
         }
     };
 
@@ -171,7 +190,7 @@ const App = () => {
         },
     ];
 
-    // Các useEffect khác
+    // Các useEffect khác giữ nguyên
     useEffect(() => {
         const fetchExamples = async () => {
             const wordsOnPage = data.map((row) => row.chinese);
@@ -228,13 +247,11 @@ const App = () => {
     const handleStartFlashcards = async () => {
         setFlashcardLoading(true);
         try {
-            // Tạo flashcards từ words nếu chưa có
             if (!flashcardStats || flashcardStats.total === 0) {
                 await createFlashcardsFromWords();
                 await loadFlashcardStats();
             }
 
-            // Lấy flashcards cần review
             const response = await getFlashcardsForReview(10);
             const reviewFlashcards = (response.data as any).flashcards;
 
@@ -273,7 +290,6 @@ const App = () => {
             setData((prev) => [...prev, { ...word, key: word._id || word.key }]);
             form.resetFields();
             toast.success("Thêm từ thành công!");
-            // Refresh data để đảm bảo hiển thị đúng
             fetchWords();
         } catch (e) {
             toast.error("Lỗi khi thêm từ!");
@@ -304,8 +320,10 @@ const App = () => {
         setEditingRow(null);
     };
 
+    // CẢI TIẾN: Thêm loading cho hành động xóa
     const confirmDelete = async () => {
         if (!deleteRow) return;
+        setIsDeleting(true);
         try {
             await deleteWord(deleteRow.key);
             setData(data.filter((item) => item.key !== deleteRow.key));
@@ -313,6 +331,7 @@ const App = () => {
         } catch (e) {
             toast.error("Lỗi khi xóa từ!");
         }
+        setIsDeleting(false);
         setDeleteRow(null);
     };
 
@@ -361,7 +380,6 @@ const App = () => {
 
     const handleAddIfNotExist = async () => {
         if (!searchOrAdd) return;
-        // Kiểm tra chỉ cho phép chữ Trung
         if (!/^[\u4e00-\u9fff]+$/.test(searchOrAdd)) {
             toast.error("Chỉ nhập chữ Trung!");
             return;
@@ -401,14 +419,12 @@ const App = () => {
         setEditingVietnameseRow(null);
     };
 
-    // Hàm dịch tự động nghĩa tiếng Việt
     const handleTranslateVietnamese = async (row: WordRow) => {
         setTranslateLoading((prev) => ({ ...prev, [row.key]: true }));
         try {
             const res = await translateToVietnamese(row.chinese);
             const translatedText = (res.data as any).translated;
 
-            // Cập nhật nghĩa tiếng Việt
             const updateRes = await updateWord(row.key, {
                 vietnamese: translatedText,
             });
@@ -418,7 +434,6 @@ const App = () => {
                     item.key === row.key ? { ...item, ...updated, key: item.key } : item
                 )
             );
-
             toast.success("Dịch nghĩa tiếng Việt thành công!");
         } catch (e) {
             toast.error("Lỗi khi dịch nghĩa tiếng Việt!");
@@ -443,6 +458,15 @@ const App = () => {
         setDeleteRow,
         translateLoading,
     });
+
+    // CẢI TIẾN: Hiển thị màn hình loading hoặc lỗi trước khi render chính
+    if (pageLoading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+                <Spin tip="Đang tải dữ liệu..." size="large" />
+            </div>
+        );
+    }
 
     // Nếu chưa đăng nhập, hiển thị màn hình đăng nhập
     if (!isAuthenticated) {
@@ -600,12 +624,33 @@ const App = () => {
             </div>
         );
     }
+    
+    // CẢI TIẾN: Hiển thị lỗi nếu có
+    if (pageError) {
+        return (
+            <div style={{ padding: 40 }}>
+                <Alert
+                    message="Lỗi"
+                    description={pageError}
+                    type="error"
+                    showIcon
+                    action={
+                        <Button size="small" type="primary" onClick={() => fetchWords()}>
+                            Thử lại
+                        </Button>
+                    }
+                />
+            </div>
+        );
+    }
+
+
     return (
         <div
             style={{
                 minHeight: "100vh",
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                padding: "20px",
+                background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)", // Nền nhẹ nhàng hơn
+                padding: isMobile ? "10px" : "20px", // Padding cho mobile
             }}
         >
             <div
@@ -615,7 +660,6 @@ const App = () => {
                     background: "#fff",
                     borderRadius: 24,
                     boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-                    overflow: "hidden",
                 }}
             >
                 {/* Header */}
@@ -698,6 +742,7 @@ const App = () => {
                     <div
                         style={{
                             display: "flex",
+                            flexWrap: "wrap", // Cho phép xuống dòng trên mobile
                             alignItems: "center",
                             gap: 16,
                             background: "rgba(255,255,255,0.1)",
@@ -709,7 +754,7 @@ const App = () => {
                         <span style={{ fontWeight: 600, fontSize: 16 }}>🎤 Giọng đọc:</span>
                         <Select
                             style={{
-                                minWidth: 300,
+                                minWidth: isMobile ? '100%' : 300, // Chiếm toàn bộ chiều rộng trên mobile
                                 background: "rgba(255,255,255,0.9)",
                                 borderRadius: 8,
                             }}
@@ -721,7 +766,7 @@ const App = () => {
                             }))}
                             placeholder="Chọn giọng đọc"
                         />
-                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 600 }}>🕒 Tốc độ đọc:</span>
                             <Select
                                 style={{ width: 160 }}
@@ -735,11 +780,10 @@ const App = () => {
                             />
                         </div>
                     </div>
-
                 </div>
 
                 {/* Main Content */}
-                <div style={{ padding: "40px" }}>
+                <div style={{ padding: isMobile ? "20px" : "40px" }}>
                     {/* Search and Add Section */}
                     <div
                         style={{
@@ -772,8 +816,8 @@ const App = () => {
                             </p>
                         </div>
 
-                        <div style={{ display: "flex", gap: 16, alignItems: "flex-end" }}>
-                            <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: 'wrap' }}>
+                            <div style={{ flex: 1, minWidth: '200px' }}>
                                 <Input
                                     placeholder="Nhập hoặc tìm kiếm chữ Trung..."
                                     value={searchOrAdd}
@@ -929,7 +973,6 @@ const App = () => {
                         style={{
                             background: "white",
                             borderRadius: 16,
-                            overflow: "hidden",
                             border: "1px solid #e9ecef",
                             boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
                         }}
@@ -953,27 +996,61 @@ const App = () => {
                             </h3>
                         </div>
 
-                        <div style={{ padding: "0 24px 24px 24px" }}>
-                            <WordTable
-                                columns={columns}
-                                data={filteredData}
-                                pagination={{
-                                    current: page,
-                                    pageSize: pageSize,
-                                    total: total,
-                                    onChange: (p: number, ps: number) => {
-                                        setPage(p);
-                                        setPageSize(ps);
-                                    },
-                                    showSizeChanger: true,
-                                    pageSizeOptions: [5, 10, 20, 50],
-                                    style: { marginTop: 16 },
-                                }}
-                                examples={examples}
-                                onEditChinese={handleEditChinese}
-                                onEditHanViet={handleEditHanViet}
-                                onDelete={setDeleteRow}
-                            />
+                        <div style={{ padding: isMobile ? "10px" : "0 24px 24px 24px" }}>
+                            {/* CẢI TIẾN: Render có điều kiện cho mobile/desktop */}
+                            {isMobile ? (
+                                <List
+                                    loading={pageLoading}
+                                    dataSource={filteredData}
+                                    renderItem={(word) => (
+                                        <List.Item>
+                                            <Card title={word.chinese} style={{ width: '100%' }}>
+                                                <p><strong>Pinyin:</strong> {word.pinyin}</p>
+                                                <p><strong>Hán Việt:</strong> {word.hanViet}</p>
+                                                <p><strong>Nghĩa:</strong> {word.vietnamese}</p>
+                                                <Space style={{ marginTop: 16, flexWrap: 'wrap' }}>
+                                                    <Button size="small" onClick={() => speakChinese(word.chinese)}>Phát âm</Button>
+                                                    <Button size="small" onClick={() => handleEditVietnamese(word)}>Sửa nghĩa</Button>
+                                                    <Button size="small" onClick={() => setDeleteRow(word)}>Xóa</Button>
+                                                </Space>
+                                            </Card>
+                                        </List.Item>
+                                    )}
+                                    pagination={{
+                                        current: page,
+                                        pageSize: pageSize,
+                                        total: total,
+                                        // SỬA LỖI: Thêm kiểu dữ liệu cho p và ps
+                                        onChange: (p: number, ps: number) => {
+                                            setPage(p);
+                                            setPageSize(ps);
+                                        },
+                                        simple: true, // Giao diện phân trang đơn giản cho mobile
+                                    }}
+                                />
+                            ) : (
+                                <WordTable
+                                    columns={columns}
+                                    data={filteredData}
+                                    pagination={{
+                                        current: page,
+                                        pageSize: pageSize,
+                                        total: total,
+                                        // SỬA LỖI: Thêm kiểu dữ liệu cho p và ps
+                                        onChange: (p: number, ps: number) => {
+                                            setPage(p);
+                                            setPageSize(ps);
+                                        },
+                                        showSizeChanger: true,
+                                        pageSizeOptions: [5, 10, 20, 50],
+                                        style: { marginTop: 16 },
+                                    }}
+                                    examples={examples}
+                                    onEditChinese={handleEditChinese}
+                                    onEditHanViet={handleEditHanViet}
+                                    onDelete={setDeleteRow}
+                                />
+                            )}
                         </div>
                     </div>
                 </div>
@@ -994,11 +1071,13 @@ const App = () => {
                 example={exampleModal.example}
                 onClose={() => setExampleModal({ open: false, example: "" })}
             />
+            {/* CẢI TIẾN: Thêm confirmLoading cho modal xóa */}
             <DeleteConfirmModal
                 open={!!deleteRow}
                 onOk={confirmDelete}
                 onCancel={() => setDeleteRow(null)}
                 chinese={deleteRow?.chinese}
+                confirmLoading={isDeleting}
             />
             <EditChineseModal
                 open={!!editingChineseRow}
