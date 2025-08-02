@@ -1,7 +1,10 @@
-import { CheckOutlined, CloseOutlined, EyeOutlined, SoundOutlined } from '@ant-design/icons';
-import { Button, Card, Col, message, Modal, Progress, Row, Space, Statistic } from 'antd';
-import React, { useState } from 'react';
-import { Flashcard, updateReviewResult } from '../api/flashcardApi';
+import { useState } from "react";
+import { Flashcard } from "../types/flashcard";
+import { updateReviewResult } from "../api/flashcardApi";
+import { Button, Card, Col, message, Modal, Progress, Row, Space, Statistic } from "antd";
+import {SoundOutlined, CloseOutlined, CheckOutlined, EyeOutlined } from '@ant-design/icons';
+
+
 
 interface FlashcardModalProps {
     open: boolean;
