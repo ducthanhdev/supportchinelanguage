@@ -47,104 +47,77 @@ import FlashcardModal from "./components/FlashcardModal";
 import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
 import WordTable from "./components/WordTable";
+import { useAuth } from "./hooks/useAuth"; // BƯỚC 1: Import hook mới
 import { useMediaQuery } from "./hooks/useMediaQuery";
 import usePronunciation from "./hooks/usePronunciation";
 import useWordTableColumns from "./hooks/useWordTableColumns";
 import { Flashcard, FlashcardStats } from "./types/flashcard";
-import { User } from "./types/user";
 import { WordRow } from "./types/word";
 
 const App = () => {
+    // BƯỚC 2: Gọi hook useAuth để lấy tất cả logic xác thực
+    const {
+        currentUser,
+        isAuthenticated,
+        isAuthLoading,
+        showLoginModal,
+        setShowLoginModal,
+        showRegisterModal,
+        setShowRegisterModal,
+        handleAuthSuccess,
+        handleLogout,
+    } = useAuth();
+
     const [form] = Form.useForm();
     const [data, setData] = useState<WordRow[]>([]);
     const [editingRow, setEditingRow] = useState<WordRow | null>(null);
     const [hanVietInput, setHanVietInput] = useState("");
 
-    // --- CẢI TIẾN: Tách biệt các trạng thái loading ---
-    const [loading, setLoading] = useState(false); // Dùng cho các hành động trong modal (lưu, sửa)
-    const [pageLoading, setPageLoading] = useState(true); // Dùng cho việc tải dữ liệu lần đầu
-    const [pageError, setPageError] = useState<string | null>(null); // Dùng để hiển thị lỗi toàn trang
-    const [isDeleting, setIsDeleting] = useState(false); // Dùng cho hành động xóa
+    const [loading, setLoading] = useState(false);
+    const [pageLoading, setPageLoading] = useState(true); // Giữ lại state này để tải dữ liệu từ vựng
+    const [pageError, setPageError] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
-    const [translateLoading, setTranslateLoading] = useState<{
-        [key: string]: boolean;
-    }>({});
-    const [exampleModal, setExampleModal] = useState<{
-        open: boolean;
-        example: string;
-    }>({ open: false, example: "" });
+    const [translateLoading, setTranslateLoading] = useState<{ [key: string]: boolean }>({});
+    const [exampleModal, setExampleModal] = useState<{ open: boolean; example: string }>({ open: false, example: "" });
     const [examples, setExamples] = useState<{ [key: string]: string }>({});
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [total, setTotal] = useState(0);
     const [deleteRow, setDeleteRow] = useState<WordRow | null>(null);
-    const [editingChineseRow, setEditingChineseRow] = useState<WordRow | null>(
-        null
-    );
+    const [editingChineseRow, setEditingChineseRow] = useState<WordRow | null>(null);
     const [chineseInput, setChineseInput] = useState("");
-    const [userChineseInputs, setUserChineseInputs] = useState<{
-        [key: string]: string;
-    }>({});
-    const [userChineseStatus, setUserChineseStatus] = useState<{
-        [key: string]: "correct" | "incorrect" | undefined;
-    }>({});
+    const [userChineseInputs, setUserChineseInputs] = useState<{ [key: string]: string }>({});
+    const [userChineseStatus, setUserChineseStatus] = useState<{ [key: string]: "correct" | "incorrect" | undefined }>({});
     const [searchOrAdd, setSearchOrAdd] = useState("");
     const [filteredData, setFilteredData] = useState<WordRow[]>([]);
-    const [editingVietnameseRow, setEditingVietnameseRow] =
-        useState<WordRow | null>(null);
+    const [editingVietnameseRow, setEditingVietnameseRow] = useState<WordRow | null>(null);
     const [vietnameseInput, setVietnameseInput] = useState("");
 
-    // Các hooks phải được gọi ở đây, ở cấp cao nhất của component
     const { voices, selectedVoice, setSelectedVoice, speechRate, setSpeechRate, getDisplayVoiceName, speakChinese } = usePronunciation();
-    const isMobile = useMediaQuery('(max-width: 768px)'); // CẢI TIẾN: Hook kiểm tra màn hình mobile
-
-    // Authentication states
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [showLoginModal, setShowLoginModal] = useState(false);
-    const [showRegisterModal, setShowRegisterModal] = useState(false);
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     // Flashcard states
     const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
-    const [flashcardStats, setFlashcardStats] = useState<FlashcardStats | null>(
-        null
-    );
+    const [flashcardStats, setFlashcardStats] = useState<FlashcardStats | null>(null);
     const [showFlashcardModal, setShowFlashcardModal] = useState(false);
     const [flashcardLoading, setFlashcardLoading] = useState(false);
     const [showDashboardModal, setShowDashboardModal] = useState(false);
 
-    // Kiểm tra authentication khi component mount
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        const userStr = localStorage.getItem("user");
+    // BƯỚC 3: Xóa bỏ useEffect kiểm tra token cũ vì nó đã nằm trong useAuth
 
-        if (token && userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                setCurrentUser(user);
-                setIsAuthenticated(true);
-            } catch (error) {
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                setIsAuthenticated(false);
-                setPageLoading(false);
-            }
-        } else {
-            // Nếu không có token, cũng tắt loading để hiện màn hình đăng nhập
-            setPageLoading(false);
-        }
-    }, []);
-
-    // Chỉ fetch data khi đã authenticated
+    // Chỉ fetch data khi đã authenticated và quá trình kiểm tra auth ban đầu đã xong
     useEffect(() => {
         if (isAuthenticated) {
             fetchWords();
+        } else if (!isAuthLoading) {
+            // Nếu không đăng nhập và đã kiểm tra xong, tắt loading trang
+            setPageLoading(false);
         }
-    }, [isAuthenticated, page, pageSize]);
+    }, [isAuthenticated, isAuthLoading, page, pageSize]);
 
-    // CẢI TIẾN: Thêm xử lý loading và error cho hàm fetch chính
     const fetchWords = async () => {
-        setPageLoading(true); // Bật loading mỗi khi fetch lại
+        setPageLoading(true);
         try {
             const res = await getWords(page, pageSize);
             const dataRes = res.data as any;
@@ -154,30 +127,16 @@ const App = () => {
             }));
             setData(words);
             setTotal(dataRes.total || words.length);
-            setPageError(null); // Xóa lỗi cũ nếu thành công
+            setPageError(null);
         } catch (e) {
             toast.error("Không lấy được danh sách từ vựng!");
             setPageError("Không thể tải dữ liệu từ máy chủ. Vui lòng làm mới lại trang.");
         } finally {
-            setPageLoading(false); // Tắt loading khi hoàn tất
+            setPageLoading(false);
         }
     };
 
-    const handleAuthSuccess = (token: string, user: User) => {
-        setCurrentUser(user);
-        setIsAuthenticated(true);
-        setShowLoginModal(false);
-        setShowRegisterModal(false);
-    };
-
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setCurrentUser(null);
-        setIsAuthenticated(false);
-        setData([]);
-        toast.success("Đăng xuất thành công!");
-    };
+    // BƯỚC 4: Xóa bỏ handleAuthSuccess và handleLogout vì đã có trong useAuth
 
     const userMenuItems = [
         {
@@ -189,11 +148,11 @@ const App = () => {
             key: "logout",
             icon: <LogoutOutlined />,
             label: "Đăng xuất",
-            onClick: handleLogout,
+            onClick: handleLogout, // Sử dụng hàm từ hook
         },
     ];
 
-    // Các useEffect khác giữ nguyên
+    // ... Các useEffect và hàm xử lý khác giữ nguyên ...
     useEffect(() => {
         const fetchExamples = async () => {
             const wordsOnPage = data.map((row) => row.chinese);
@@ -231,7 +190,6 @@ const App = () => {
         }
     }, [searchOrAdd, data]);
 
-    // Load flashcard stats khi authenticated
     useEffect(() => {
         if (isAuthenticated) {
             loadFlashcardStats();
@@ -247,44 +205,36 @@ const App = () => {
         }
     };
 
-    // SỬA LỖI: Viết lại hoàn toàn logic xử lý flashcard
     const handleStartFlashcards = async () => {
         setFlashcardLoading(true);
         try {
-            // Bước 1: Luôn thử lấy thẻ cần review trước
             let reviewResponse = await getFlashcardsForReview(10);
             let reviewFlashcards = (reviewResponse.data as any).flashcards;
 
-            // Bước 2: Nếu không có thẻ nào, tìm hiểu lý do
             if (reviewFlashcards.length === 0) {
-                // Kiểm tra thống kê để xem có thẻ nào tồn tại không
                 const statsResponse = await getFlashcardStats();
                 const currentStats = statsResponse.data;
-                setFlashcardStats(currentStats); // Cập nhật state để UI hiển thị đúng
+                setFlashcardStats(currentStats);
 
                 if (currentStats.total > 0) {
-                    // Có thẻ nhưng chưa đến hạn
                     toast.success("Chúc mừng! Bạn đã ôn tập hết các thẻ đến hạn.");
-                    return; // Thoát khỏi hàm
+                    return;
                 } else {
-                    // Không có thẻ nào tồn tại -> Tạo thẻ mới
                     toast.info("Chưa có flashcard, đang tạo từ danh sách từ vựng...");
                     const createResponse = await createFlashcardsFromWords();
                     const createdCount = (createResponse.data as any).created;
 
                     if (createdCount > 0) {
                         toast.success(`Đã tạo ${createdCount} flashcard mới. Bắt đầu ôn tập!`);
-                        // Lấy lại danh sách thẻ review sau khi đã tạo
                         reviewResponse = await getFlashcardsForReview(10);
                         reviewFlashcards = (reviewResponse.data as any).flashcards;
                     } else {
                         toast.warn("Không có từ vựng nào để tạo flashcard. Hãy thêm từ mới trước.");
-                        return; // Thoát khỏi hàm
+                        return;
                     }
                 }
             }
             
-            // Bước 3: Nếu có thẻ để review (từ lần gọi đầu hoặc sau khi tạo), hiển thị modal
             if (reviewFlashcards.length > 0) {
                 setFlashcards(reviewFlashcards);
                 setShowFlashcardModal(true);
@@ -296,22 +246,19 @@ const App = () => {
             toast.error("Có lỗi xảy ra trong quá trình chuẩn bị flashcard!");
             console.error(error);
         } finally {
-            setFlashcardLoading(false); // Đảm bảo luôn tắt loading
+            setFlashcardLoading(false);
         }
     };
 
     const handleFlashcardFinish = () => {
         setShowFlashcardModal(false);
-        loadFlashcardStats(); // Tải lại thống kê sau khi ôn tập xong
+        loadFlashcardStats();
         toast.success("Hoàn thành phiên ôn tập!");
     };
 
-    // Các hàm xử lý
     const handleAdd = async (values: { chinese: string }) => {
         try {
-            const res = await addWord(values.chinese);
-            const word = res.data as any;
-            setData((prev) => [...prev, { ...word, key: word._id || word.key }]);
+            await addWord(values.chinese);
             form.resetFields();
             toast.success("Thêm từ thành công!");
             fetchWords();
@@ -344,7 +291,6 @@ const App = () => {
         setEditingRow(null);
     };
 
-    // CẢI TIẾN: Thêm loading cho hành động xóa
     const confirmDelete = async () => {
         if (!deleteRow) return;
         setIsDeleting(true);
@@ -483,11 +429,11 @@ const App = () => {
         translateLoading,
     });
 
-    // CẢI TIẾN: Hiển thị màn hình loading hoặc lỗi trước khi render chính
-    if (pageLoading) {
+    // Thay thế pageLoading bằng isAuthLoading cho màn hình chờ ban đầu
+    if (isAuthLoading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                <Spin tip="Đang tải dữ liệu..." size="large" />
+                <Spin tip="Đang kiểm tra phiên đăng nhập..." size="large" />
             </div>
         );
     }
@@ -649,7 +595,6 @@ const App = () => {
         );
     }
     
-    // CẢI TIẾN: Hiển thị lỗi nếu có
     if (pageError) {
         return (
             <div style={{ padding: 40 }}>
@@ -673,8 +618,8 @@ const App = () => {
         <div
             style={{
                 minHeight: "100vh",
-                background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)", // Nền nhẹ nhàng hơn
-                padding: isMobile ? "10px" : "20px", // Padding cho mobile
+                background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+                padding: isMobile ? "10px" : "20px",
             }}
         >
             <div
@@ -766,7 +711,7 @@ const App = () => {
                     <div
                         style={{
                             display: "flex",
-                            flexWrap: "wrap", // Cho phép xuống dòng trên mobile
+                            flexWrap: "wrap",
                             alignItems: "center",
                             gap: 16,
                             background: "rgba(255,255,255,0.1)",
@@ -778,7 +723,7 @@ const App = () => {
                         <span style={{ fontWeight: 600, fontSize: 16 }}>🎤 Giọng đọc:</span>
                         <Select
                             style={{
-                                minWidth: isMobile ? '100%' : 300, // Chiếm toàn bộ chiều rộng trên mobile
+                                minWidth: isMobile ? '100%' : 300,
                                 background: "rgba(255,255,255,0.9)",
                                 borderRadius: 8,
                             }}
