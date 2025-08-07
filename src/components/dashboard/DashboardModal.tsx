@@ -16,7 +16,7 @@ import DifficultyPieChart from './DifficultyPieChart';
 import DailyCountChart from './DailyCountChart';
 import AchievementGrid from './AchievementGrid';
 
-const DashboardModal = ({ open, onClose }: DashboardModalProps) => {
+const DashboardModal = ({ open, onClose, currentUser  }: DashboardModalProps) => {
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState<ProgressData[]>([]);
   const [activity, setActivity] = useState<ActivityData | null>(null);
@@ -30,10 +30,11 @@ const DashboardModal = ({ open, onClose }: DashboardModalProps) => {
   const [dailyCounts, setDailyCounts] = useState<DashboardStats['dailyCounts']>([]);
 
   useEffect(() => {
-    if (open) {
-      fetchDashboardData(selectedRange);
-    }
-  }, [open, selectedRange]);
+  if (open) {
+    console.log("🧪 selectedRange = ", selectedRange);
+    fetchDashboardData(selectedRange);
+  }
+}, [open, selectedRange]);
 
   const fetchDashboardData = async (range: '7days' | '30days' | '90days') => {
     setLoading(true);
@@ -63,11 +64,11 @@ const DashboardModal = ({ open, onClose }: DashboardModalProps) => {
       footer={null}
       width={1000}
       destroyOnClose
-      bodyStyle={{ background: '#f0f2f5', padding: '24px' }}
+      styles={{ body: { background: '#f0f2f5', padding: '24px' } }}
     >
       <Spin spinning={loading}>
         <div style={{ display: 'grid', gap: 24 }}>
-          <StreakCards activity={activity} />
+          <StreakCards currentUser={currentUser} /> {/* ✅ Đúng prop */}
           <ProgressChart
             progress={progress}
             selectedRange={selectedRange}

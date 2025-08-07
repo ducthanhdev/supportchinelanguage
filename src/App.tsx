@@ -1097,6 +1097,7 @@ const App = () => {
             <DashboardModal
                 open={showDashboardModal}
                 onClose={() => setShowDashboardModal(false)}
+                currentUser={currentUser}
             />
             <PronunciationPractice targetWord="你好" />
         </div>

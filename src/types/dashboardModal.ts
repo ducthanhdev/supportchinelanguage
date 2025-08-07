@@ -1,3 +1,5 @@
+import { User } from './user';
+
 export interface DashboardStats {
   progress: { date: string; totalWords: number }[];
   dailyCounts: { date: string; count: number }[]; // 👈 thêm dòng này
@@ -18,6 +20,7 @@ export interface DashboardStats {
 export interface DashboardModalProps {
   open: boolean;
   onClose: () => void;
+  currentUser: User | null;
 }
 
 
